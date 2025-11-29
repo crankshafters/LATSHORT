@@ -4,9 +4,14 @@ import folium
 from streamlit_folium import st_folium
 import polyline
 
+import os # <--- NEW IMPORT
+
 st.set_page_config(layout="wide", page_title="SafePath Delhi")
 
-BACKEND_URL = "http://127.0.0.1:5000/get_safest_path"
+# ⚠️ PLACE THE NEW CODE HERE, REPLACING THE OLD URL DEFINITION
+BACKEND_BASE_URL = os.environ.get("BACKEND_SERVICE_URL", "http://127.0.0.1:5000")
+BACKEND_URL = BACKEND_BASE_URL + "/get_safest_path"
+# ----------------------------------------------------------------------
 
 if 'start_point' not in st.session_state:
     st.session_state.start_point = None
