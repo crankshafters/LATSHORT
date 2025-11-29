@@ -9,7 +9,7 @@ from shapely.geometry import Point, shape
 
 app = Flask(__name__)
 
-LATLONG_API_KEY = "your_actual_api_key_here" 
+LATLONG_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJUb2tlbklEIjoiN2RjYTJlMmQtMmEzZi00MGNkLWFiMmItY2Y5ZGMwYTQ3YjFlIiwiQ2xpZW50SUQiOiJiNDYxZmVlOC1hNmIzLTQ0MWQtYTYwMC03YmQwMjZiMzBjYmUiLCJCdW5pdElEIjoxNTY5MCwiQXBwTmFtZSI6InRhbmF5c2hhaDJrN0BnbWFpbC5jb21tYWlsc2lnbnVwIiwiQXBwSUQiOjE4NTA1LCJUaW1lU3RhbXAiOiIyMDI1LTExLTI5IDA1OjU5OjU0IiwiZXhwIjoxNzY3OTk1OTk0fQ.iTyV6tHP6CMj-bKo1D_JZY1q41hVaS0iAYjiP6XyR9Y" 
 LATLONG_BASE_URL = "https://apihub.latlong.ai/v4"
 
 SAFE_TYPES = ["police", "hospital", "clinic", "pharmacy", "bank", "atm", "government", "school", "university", "metro_station"]
@@ -149,7 +149,7 @@ def get_safest_path():
             "routes": analyzed_routes,
             "safest_route_id": analyzed_routes[0]['id'] if analyzed_routes else None
         })
-
+    
     except Exception as e:
         print(f"ERROR: {e}")
         return jsonify({"error": str(e)}), 500
