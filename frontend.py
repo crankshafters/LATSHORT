@@ -88,7 +88,7 @@ st.title("🛡️ SafePath: Delhi")
 tab1, tab2, tab3 = st.tabs(["🗺️ Route Finder", "ℹ️ How Algorithm Works", "👥 About Us"])
 
 current_dir = r"https://github.com/crankshafters/LATSHORT.git"
-json_path = os.path.join( current_dir,"delhi_data.json")
+json_path = "delhi_data.json"
 
 def get_suggestions(place_name):
     try:
