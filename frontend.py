@@ -473,7 +473,7 @@ else:
         # Route Analysis
         if st.session_state.start_point and st.session_state.end_point:
             st.sidebar.markdown("---")
-            st.sidebar.subheader("🕒 Time of Travel")
+            st.sidebar.subheader("🕒 Time of Travel (in minutes) ")
             travel_hour = st.sidebar.slider("Hour (24h)", 0, 23, 14)
             
             if st.button("🚀 Analyze Safest Route", type="primary"):
