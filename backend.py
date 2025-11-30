@@ -27,7 +27,6 @@ def load_local_data():
         pass
 
 def get_osrm_routes(start_coords, end_coords):
-    # CHANGED: 'driving' -> 'walking' to avoid highways
     url = f"http://router.project-osrm.org/route/v1/walking/{start_coords[1]},{start_coords[0]};{end_coords[1]},{end_coords[0]}?overview=full&alternatives=true&geometries=polyline"
     try:
         headers = {'User-Agent': 'SafePathHackathon/1.0'}
@@ -56,7 +55,7 @@ def get_nearby_landmarks(lat, lon):
     except Exception:
         return []
 
-def check_local_zone_safety(lat, lon):
+def check_local_zone_safety(lat, lon, is_night):
     base_score = 0
     if not local_safety_data or "features" not in local_safety_data:
         return 0
@@ -68,44 +67,66 @@ def check_local_zone_safety(lat, lon):
             if polygon.contains(point):
                 props = feature.get("properties", {})
                 crime_rate = props.get("crime_rate", 0.5) 
+                
                 base_score -= (crime_rate * 20)
+                
                 if props.get("lighting") == "poor":
-                    base_score -= 10
+                    if is_night:
+                        base_score -= 25
+                    else:
+                        base_score -= 5
     except Exception:
         pass
     return base_score
 
-def calculate_path_score(route_geometry):
+def calculate_path_score(route_geometry, hour):
     try:
         coordinates = polyline.decode(route_geometry)
     except:
-        return 50 
+        return 50, [] # Now returns score AND POIs
+
+    is_night = (hour < 6) or (hour > 19)
 
     total_score = 100
-    # Sampling: Check fewer points to save API calls (every 10th point)
+    all_pois = []
+    
+    # Check 10 points along the path for POIs
     step = max(1, len(coordinates) // 10) 
     sampled_points = coordinates[::step]
     
     for lat, lon in sampled_points:
-        total_score += check_local_zone_safety(lat, lon)
+        total_score += check_local_zone_safety(lat, lon, is_night)
+        
         landmarks = get_nearby_landmarks(lat, lon)
         
-        # If no landmarks found (or API broken), slight randomize for demo
-        if not landmarks: 
-             continue
-
         for landmark in landmarks:
             l_type = landmark.get("type", "").lower()
+            l_name = landmark.get("name", "Unknown")
+            
+            poi = {
+                "name": l_name,
+                "type": l_type,
+                "lat": lat, 
+                "lon": lon,
+                "is_safe": False 
+            }
+
             if any(st in l_type for st in SAFE_TYPES):
                 total_score += 2
+                poi["is_safe"] = True
             elif any(ut in l_type for ut in UNSAFE_TYPES):
-                total_score -= 3
-                
-    # Fallback for hackathon demo if score hasn't moved
+                if is_night:
+                    total_score -= 5
+                else:
+                    total_score -= 3
+                poi["is_safe"] = False
+            
+            all_pois.append(poi) # Collect all POIs
+
     if total_score == 100:
         total_score = random.randint(65, 95)
 
-    return max(0, min(100, total_score))
+    return max(0, min(100, total_score)), all_pois
 
 @app.route('/get_safest_path', methods=['POST'])
 def get_safest_path():
@@ -115,6 +136,7 @@ def get_safest_path():
         start_lon = data.get('start_lon')
         dest_lat = data.get('dest_lat')
         dest_lon = data.get('dest_lon')
+        hour = data.get('hour', 12)
         
         routes = get_osrm_routes((start_lat, start_lon), (dest_lat, dest_lon))
         
@@ -122,16 +144,19 @@ def get_safest_path():
             return jsonify({"error": "No walking routes found."}), 200
 
         analyzed_routes = []
+        all_landmarks = [] # New list to store all landmarks from all routes
+        
         for idx, route in enumerate(routes):
             geometry = route.get('geometry')
             if not geometry: continue
             
-            safety_score = calculate_path_score(geometry)
+            # Unpack the score and the list of POIs
+            safety_score, route_pois = calculate_path_score(geometry, hour)
             
-            # --- WALKING CALCULATION ---
+            # Store POIs for the frontend
+            all_landmarks.extend(route_pois) 
+
             distance_meters = route.get('distance', 0)
-            
-            # Average walking speed is 1.4 meters/second (~5 km/h)
             walking_speed_mps = 1.4 
             walking_duration_seconds = distance_meters / walking_speed_mps
 
@@ -147,9 +172,10 @@ def get_safest_path():
         
         return jsonify({
             "routes": analyzed_routes,
-            "safest_route_id": analyzed_routes[0]['id'] if analyzed_routes else None
+            "safest_route_id": analyzed_routes[0]['id'] if analyzed_routes else None,
+            "landmarks": all_landmarks # NEW: Send all POIs to frontend
         })
-    
+
     except Exception as e:
         print(f"ERROR: {e}")
         return jsonify({"error": str(e)}), 500
